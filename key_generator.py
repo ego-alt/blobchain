@@ -1,16 +1,24 @@
 from random import randint
+from hashlib import sha256
 import primes
 
-"""Adapted the RSA Digital Signature Algorithm as documented by the U.S. Department of Commerce
+"""Adapted the Digital Signature Algorithm as documented by the U.S. Department of Commerce
 Section B.1.1: Key Pair Generation Using Extra Random Bits
 Create public and private keys for yourself"""
 
 
 def bits_to_integer(bits, N):
     integer = 0
-    for n in range(N):
-        integer += (2 ** (N - n)) * bits[n]
+    for n in range(len(bits)):
+        two_power = 2 ** (N - n)
+        integer += two_power * int(bits[n])
     return integer
+
+
+def hashes_to_bits(M):
+    hashes = sha256(M.encode()).hexdigest()
+    bits = bin(int(hashes, 16))
+    return bits
 
 
 def find_prime(length, input_seed):
@@ -33,18 +41,19 @@ class PairKey:
 
         validate.LN(self.L, self.N)
 
-        g = int(self.find_g(self.p, self.q))
-        c = self.find_c()
+        self.g = int(self.find_g(self.p, self.q))
+        self.c = self.find_c()
         """ !-!-! validate.g() takes too damn long to run """
         # validate.g(self.p, self.q, g)
 
-        x = (c % (self.q - 1)) + 1
-        y = pow(x, g, self.p)
-        validate.xy(x, y, self.p, self.q)
-
-        print(x, y)
+        self.x = (self.c % (self.q - 1)) + 1
+        self.y = pow(self.x, self.g, self.p)
+        validate.xy(self.x, self.y, self.p, self.q)
 
     def find_g(self, p, q):
+        """:param p: <int> Prime modulus
+        :param q: <int> Prime divisor of (p - 1)
+        :return g: <int> Generator of a subgroup of order q in the multiplicative group GF(p)"""
         e = (p - 1) // q
         h = randint(1, (p - 1))
         g = pow(h, e, p)
@@ -56,6 +65,39 @@ class PairKey:
         bitstring = [randint(0, 1) for _ in range(self.N + 64)]
         c = bits_to_integer(bitstring, self.N + 64)
         return c
+
+    def find_k(self):
+        pass
+
+    def gen_signature(self, M, k):
+        """:param M: <str> Transaction details
+        :param k: <int> Secret number unique to each message"""
+        z = hashes_to_bits(M)[2:min(self.N, 256)]
+        z = bits_to_integer(z, len(z))
+
+        r = pow(self.g, k, self.p) % self.q
+        s = (k ** (-1) * (z + self.x * r)) % self.q
+        if r == 0 or s == 0:
+            self.find_k()
+        return r, s
+
+    def verify_signature(self, M, r, s):
+        """Prior to verifying the signature, the domain parameters and public key should be available to the verifier
+        :param M: <str> Received version of M (M')
+        :param r: <int> Received version of r (r')
+        :param s: <int> Received version of s (s')
+        """
+        if not (0 < r < self.q and 0 < s < self.q):
+            return False
+        w = pow(s, -1, self.q)
+        z = hashes_to_bits(M)[:min(self.N, 256)]
+        z = bits_to_integer(z)
+
+        u1 = (z * w) % self.q
+        u2 = (r * w) % self.q
+        v = ((self.g ** u1) * (self.y ** u2) % self.p) % self.q
+        if v == r:
+            return True
 
 
 class Validate:
@@ -96,3 +138,5 @@ class Validate:
 
 
 pair = PairKey(1024, 160, 927)
+(x, y) = pair.gen_signature("hello", 2)
+
