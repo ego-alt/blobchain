@@ -1,7 +1,7 @@
 from random import randint
 import primes
 
-"""Attempted implementation of the RSA Digital Signature Algorithm as documented by the U.S. Department of Commerce
+"""Adapted the RSA Digital Signature Algorithm as documented by the U.S. Department of Commerce
 Section B.1.1: Key Pair Generation Using Extra Random Bits
 Create public and private keys for yourself"""
 
@@ -15,7 +15,7 @@ def bits_to_integer(bits, N):
 
 def find_prime(length, input_seed):
     finding = primes.ST_random_prime(length, input_seed)
-    good_prime = finding.prime_no
+    good_prime = finding.prime
     return good_prime
 
 
@@ -26,24 +26,20 @@ class PairKey:
 
         self.p = find_prime(L, input_seed)
         self.q = find_prime(N, input_seed)
-        print(self.p)
-        print(self.q)
 
         validate = Validate()
         self.L = validate.pq(self.p, L)
         self.N = validate.pq(self.q, N)
-        print(self.L)
-        print(self.N)
 
         validate.LN(self.L, self.N)
 
         g = int(self.find_g(self.p, self.q))
         c = self.find_c()
         """ !-!-! validate.g() takes too damn long to run """
-        validate.g(self.p, self.q, g)
+        # validate.g(self.p, self.q, g)
 
         x = (c % (self.q - 1)) + 1
-        y = (x ** g) % self.p
+        y = pow(x, g, self.p)
         validate.xy(x, y, self.p, self.q)
 
         print(x, y)
@@ -51,7 +47,7 @@ class PairKey:
     def find_g(self, p, q):
         e = (p - 1) // q
         h = randint(1, (p - 1))
-        g = (h ** e) % p
+        g = pow(h, e, p)
         if g == 1:
             self.find_g(p, q)
         return g
@@ -99,4 +95,4 @@ class Validate:
             print("SUCCESS")
 
 
-pair = PairKey(20, 15, 927)
+pair = PairKey(1024, 160, 927)
