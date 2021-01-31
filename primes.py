@@ -18,18 +18,17 @@ class ST_random_prime:
     def __init__(self, length, input_seed):
         self.length = length
         self.prime_seed = input_seed
-
+        self.prime = 0
         self.prime_gen_counter = 0
         self.outlen = 160
-        self.tuple_result = (0, 0, 0, 0)
-        self.prime = 0
 
+    def find_prime(self):
         if self.length < 2:
-            self.tuple_result = ('FAILURE', 0, 0, 0)
+            return 'FAILURE', 0, 0, 0
         elif 2 <= self.length < 33:
-            self.find_c()
+            return self.find_c()
         else:
-            self.find_c2(input_seed)
+            return self.find_c2()
 
     def find_c(self):
         # Generates a pseudorandom integer c of length bits
@@ -41,19 +40,18 @@ class ST_random_prime:
             self.prime_gen_counter = self.prime_gen_counter + 1
             self.prime_seed = self.prime_seed + 2
             if isprime(c):
-                self.tuple_result = ("SUCCESS", c, self.prime_seed, self.prime_gen_counter)
                 self.prime = c
-                return
+                return "SUCCESS", c, self.prime_seed, self.prime_gen_counter
 
         if self.prime_gen_counter > (4 * self.length):
-            self.tuple_result = ('FAILURE', 0, 0, 0)
+            return 'FAILURE', 0, 0, 0
 
-    def find_c2(self, input_seed):
+    def find_c2(self):
         # Generates a pseudorandom integer x in the interval [2 ** (self.length - 1), 2 ** (self.length)]
-        class_object = ST_random_prime((self.length//2 + 1), input_seed)
-        (status, c0, self.prime_seed, self.prime_gen_counter) = class_object.tuple_result
+        class_object = ST_random_prime((self.length//2 + 1), self.prime_seed)
+        (status, c0, self.prime_seed, self.prime_gen_counter) = class_object.find_prime()
         if status == "FAILURE":
-            self.tuple_result = ('FAILURE', 0, 0, 0)
+            return 'FAILURE', 0, 0, 0
 
         iterations = (self.length // self.outlen) - 1
         old_counter = self.prime_gen_counter
@@ -80,10 +78,9 @@ class ST_random_prime:
             z = pow(a, (2 * t), c)
 
             if 1 == gcd(z - 1, c) and 1 == pow(z, c0, c):
-                self.tuple_result = ('SUCCESS', c, self.prime_seed, self.prime_gen_counter)
                 self.prime = c
-                return
+                return 'SUCCESS', c, self.prime_seed, self.prime_gen_counter
             t += 1
 
         if self.prime_gen_counter > (4 * self.length + old_counter):
-            self.tuple_result = ('FAILURE', 0, 0, 0)
+            return 'FAILURE', 0, 0, 0

@@ -21,34 +21,58 @@ def hashes_to_bits(M):
     return bits
 
 
-def find_prime(length, input_seed):
-    finding = primes.ST_random_prime(length, input_seed)
-    good_prime = finding.prime
-    return good_prime
+def find_inverse(z, a):
+    if 0 < z < a:
+        i, j = a, z
+        y2, y1 = 0, 1
+        while j > 0:
+            quotient = i // j
+            remainder = i - j * quotient
+            y = y2 - y1 * quotient
+            i, j = j, remainder
+            y2, y1 = y1, y
+        if i != 1:
+            print("ERROR")
+        else:
+            return y2 % a
+    else:
+        print(f"{z}, {a} are INVALID")
 
 
 class PairKey:
-    def __init__(self, L, N, input_seed):
+    def __init__(self, L, N, seedlen):
         """:param L: <int> Bit length of p
-        :param N: <int> Bit length of q"""
+        :param N: <int> Bit length of q
+        :param input_seed: <int> Any random number"""
+        self.seedlen = seedlen
+        first_seed = self.find_seed(N)
 
-        self.p = find_prime(L, input_seed)
-        self.q = find_prime(N, input_seed)
+        q = primes.ST_random_prime(N, first_seed)
+        (q_status, self.q, q_seed, q_counter) = q.find_prime()
+        p = primes.ST_random_prime(L, q_seed)
+        (p_status, self.p, p_seed, p_counter) = p.find_prime()
 
         validate = Validate()
-        self.L = validate.pq(self.p, L)
-        self.N = validate.pq(self.q, N)
+        (self.L, self.N) = validate.pq(self.p, self.q, L, N)
 
         validate.LN(self.L, self.N)
 
         self.g = int(self.find_g(self.p, self.q))
         self.c = self.find_c()
-        """ !-!-! validate.g() takes too damn long to run """
-        # validate.g(self.p, self.q, g)
 
         self.x = (self.c % (self.q - 1)) + 1
-        self.y = pow(self.x, self.g, self.p)
+        self.y = pow(self.g, self.x, self.p)
         validate.xy(self.x, self.y, self.p, self.q)
+
+    def find_seed(self, N):
+        first_seed = 0
+        if self.seedlen < N:
+            print("seedlen is INVALID")
+        while first_seed < 2 ** (N - 1):
+            first_seed = [randint(0, 1) for _ in range(self.seedlen)]
+            first_seed = bits_to_integer(first_seed, self.seedlen)
+        print("first seed generated")
+        return first_seed
 
     def find_g(self, p, q):
         """:param p: <int> Prime modulus
@@ -62,8 +86,8 @@ class PairKey:
         return g
 
     def find_c(self):
-        bitstring = [randint(0, 1) for _ in range(self.N + 64)]
-        c = bits_to_integer(bitstring, self.N + 64)
+        c = [randint(0, 1) for _ in range(self.N + 64)]
+        c = bits_to_integer(c, self.N + 64)
         return c
 
     def find_k(self):
@@ -76,11 +100,12 @@ class PairKey:
         z = bits_to_integer(z, len(z))
 
         r = pow(self.g, k, self.p) % self.q
-        s = (k ** (-1) * (z + self.x * r)) % self.q
+        s = (find_inverse(k, self.q) * (z + self.x * r)) % self.q
         if r == 0 or s == 0:
             self.find_k()
         return r, s
 
+    # !-!-! verify.signature() takes too damn long to run
     def verify_signature(self, M, r, s):
         """Prior to verifying the signature, the domain parameters and public key should be available to the verifier
         :param M: <str> Received version of M (M')
@@ -89,13 +114,13 @@ class PairKey:
         """
         if not (0 < r < self.q and 0 < s < self.q):
             return False
-        w = pow(s, -1, self.q)
-        z = hashes_to_bits(M)[:min(self.N, 256)]
-        z = bits_to_integer(z)
+        w = find_inverse(s, self.q) % self.q
+        z = hashes_to_bits(M)[2:min(self.N, 256)]
+        z = bits_to_integer(z, len(z))
 
         u1 = (z * w) % self.q
         u2 = (r * w) % self.q
-        v = ((self.g ** u1) * (self.y ** u2) % self.p) % self.q
+        v = ((self.g ** u1) * (self.y ** u2)) % self.p % self.q
         if v == r:
             return True
 
@@ -105,21 +130,18 @@ class Validate:
         pass
 
     def LN(self, L, N):
-        min_L, min_N = 10, 5
+        min_L, min_N = 1024, 160
         if L < min_L or N < min_N:
             raise Exception("(L, N) pair is INVALID")
 
-    def pq(self, pq, ln):
-        """Adjusts bit length (L, N) so that the newly generated prime numbers fall within their default relative range"
-        :param pq: <int> Prime number p or q
-        :param ln: Bit length of p or q respectively"""
-        while not (2 ** (ln - 1) <= pq <= 2 ** ln):
-            if pq < 2 ** (ln - 1):
-                ln -= 1
-            elif pq > 2 ** ln:
-                ln += 1
-        return ln
+    def pq(self, p, q, L, N):
+        if 2 ** L <= p or 2 ** N <= q:
+            print("FAILURE")
+        if (p - 1) % q != 0:
+            print("q is INVALID")
+        return L, N
 
+    # !-!-! validate.g() takes too damn long to run
     def g(self, p, q, g):
         if not 2 <= g <= (p - 1):
             print("g is INVALID")
@@ -138,5 +160,5 @@ class Validate:
 
 
 pair = PairKey(1024, 160, 927)
-(x, y) = pair.gen_signature("hello", 2)
-
+print(pair.x)
+print(pair.y)
