@@ -9,15 +9,14 @@ Create public and private keys for yourself"""
 
 def bits_to_integer(bits, N):
     integer = 0
-    for n in range(len(bits)):
+    for n in range(N):
         two_power = 2 ** (N - n)
         integer += two_power * int(bits[n])
     return integer
 
 
 def hashes_to_bits(M):
-    hashes = sha256(M.encode()).hexdigest()
-    bits = bin(int(hashes, 16))
+    bits = bin(int(M, 16))[2:]
     return bits
 
 
@@ -52,12 +51,15 @@ class PairKey:
         p = primes.ST_random_prime(L, q_seed)
         (p_status, self.p, p_seed, p_counter) = p.find_prime()
 
+        dp_seed = f"{bin(first_seed)[2:]}{bin(p_seed)[2:]}{bin(q_seed)[2:]}"
+        self.domain_parameter_seed = bits_to_integer(dp_seed, len(dp_seed))
+
         validate = Validate()
         (self.L, self.N) = validate.pq(self.p, self.q, L, N)
 
         validate.LN(self.L, self.N)
 
-        self.g = int(self.find_g(self.p, self.q))
+        self.g = self.find_g(self.p, self.q, bin(1)[2:])
         self.c = self.find_c()
 
         self.x = (self.c % (self.q - 1)) + 1
@@ -71,18 +73,22 @@ class PairKey:
         while first_seed < 2 ** (N - 1):
             first_seed = [randint(0, 1) for _ in range(self.seedlen)]
             first_seed = bits_to_integer(first_seed, self.seedlen)
-        print("first seed generated")
         return first_seed
 
-    def find_g(self, p, q):
+    def find_g(self, p, q, index):
         """:param p: <int> Prime modulus
         :param q: <int> Prime divisor of (p - 1)
+        :param index: <str> Bit string of length 8
         :return g: <int> Generator of a subgroup of order q in the multiplicative group GF(p)"""
         e = (p - 1) // q
-        h = randint(1, (p - 1))
-        g = pow(h, e, p)
-        if g == 1:
-            self.find_g(p, q)
+        count = 0
+        g = 0
+        while g < 2:
+            count += 1
+            ggen = hashes_to_bits('0x6767656E')
+            U = f"{self.domain_parameter_seed}{ggen}{index}{count}"
+            W = int(sha256(U.encode()).hexdigest(), 16)
+            g = pow(W, e, p)
         return g
 
     def find_c(self):
@@ -96,7 +102,8 @@ class PairKey:
     def gen_signature(self, M, k):
         """:param M: <str> Transaction details
         :param k: <int> Secret number unique to each message"""
-        z = hashes_to_bits(M)[2:min(self.N, 256)]
+        M = sha256(M.encode()).hexdigest()
+        z = hashes_to_bits(M)[:min(self.N, 256)]
         z = bits_to_integer(z, len(z))
 
         r = pow(self.g, k, self.p) % self.q
@@ -115,7 +122,8 @@ class PairKey:
         if not (0 < r < self.q and 0 < s < self.q):
             return False
         w = find_inverse(s, self.q) % self.q
-        z = hashes_to_bits(M)[2:min(self.N, 256)]
+        M = sha256(M.encode()).hexdigest()
+        z = hashes_to_bits(M)[:min(self.N, 256)]
         z = bits_to_integer(z, len(z))
 
         u1 = (z * w) % self.q
