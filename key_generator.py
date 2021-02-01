@@ -103,17 +103,23 @@ class PairKey:
         return c
 
     def find_k(self):
-        pass
+        c = [randint(0, 1) for _ in range(self.N + 64)]
+        c = bits_to_integer(c, self.N + 64)
+        k = c % (self.q - 1) + 1
+        k_inv = find_inverse(k, self.q)
+        return k, k_inv
 
-    def gen_signature(self, M, k):
+    def gen_signature(self, M):
         """:param M: <str> Transaction details
-        :param k: <int> Secret number unique to each message"""
-        M = sha256(M.encode()).hexdigest()
+        :param k: <int> Secret number unique to each message
+        :param k_inv: <int> Mod q inverse of k"""
+        (k, k_inv) = self.find_k()
+        M = int(sha256(M.encode()).hexdigest(), 16)
         z = bin(M)[2:min(self.N, 256)]
         z = bits_to_integer(z, len(z))
 
         r = pow(self.g, k, self.p) % self.q
-        s = (find_inverse(k, self.q) * (z + self.x * r)) % self.q
+        s = (k_inv * (z + self.x * r)) % self.q
         if r == 0 or s == 0:
             self.find_k()
         return r, s
@@ -128,7 +134,7 @@ class PairKey:
         if not (0 < r < self.q and 0 < s < self.q):
             return False
         w = find_inverse(s, self.q) % self.q
-        M = sha256(M.encode()).hexdigest()
+        M = int(sha256(M.encode()).hexdigest(), 16)
         z = bin(M)[2:min(self.N, 256)]
         z = bits_to_integer(z, len(z))
 
@@ -165,5 +171,6 @@ class Validate:
 
 
 pair = PairKey(1024, 160, 927)
-print(pair.x)
-print(pair.y)
+(r, s) = pair.gen_signature("hello")
+
+
