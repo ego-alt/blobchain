@@ -15,9 +15,12 @@ def bits_to_integer(bits, N):
     return integer
 
 
-def hashes_to_bits(M):
-    bits = bin(int(M, 16))[2:]
-    return bits
+def concatenate_binary(variables):
+    f_string = ""
+    for n in variables:
+        n = bin(n)[2:]
+        f_string = f"{f_string}{n}"
+    return f_string
 
 
 def find_inverse(z, a):
@@ -46,12 +49,15 @@ class PairKey:
         self.seedlen = seedlen
         first_seed = self.find_seed(N)
 
-        q = primes.ST_random_prime(N, first_seed)
-        (q_status, self.q, q_seed, q_counter) = q.find_prime()
-        p = primes.ST_random_prime(L, q_seed)
-        (p_status, self.p, p_seed, p_counter) = p.find_prime()
+        find_q = primes.ST_random_prime(N, first_seed)
+        (q_status, self.q, q_seed, q_counter) = find_q.find_prime()
 
-        dp_seed = f"{bin(first_seed)[2:]}{bin(p_seed)[2:]}{bin(q_seed)[2:]}"
+        p_0 = primes.ST_random_prime(L // 2 + 1, q_seed)
+        (p0_status, p0, seed, gen_counter) = p_0.find_prime()
+        (p_status, self.p, p_seed, pgen_counter) = p_0.find_p(self.q, p0, L, seed, gen_counter)
+
+        dp_seed = concatenate_binary([first_seed, p_seed, q_seed])
+
         self.domain_parameter_seed = bits_to_integer(dp_seed, len(dp_seed))
 
         validate = Validate()
@@ -59,7 +65,7 @@ class PairKey:
 
         validate.LN(self.L, self.N)
 
-        self.g = self.find_g(self.p, self.q, bin(1)[2:])
+        self.g = self.find_g(self.p, self.q, 1)
         self.c = self.find_c()
 
         self.x = (self.c % (self.q - 1)) + 1
@@ -85,8 +91,8 @@ class PairKey:
         g = 0
         while g < 2:
             count += 1
-            ggen = hashes_to_bits('0x6767656E')
-            U = f"{self.domain_parameter_seed}{ggen}{index}{count}"
+            ggen = 0x6767656E
+            U = f"{self.domain_parameter_seed}{concatenate_binary([ggen, index, count])}"
             W = int(sha256(U.encode()).hexdigest(), 16)
             g = pow(W, e, p)
         return g
@@ -103,7 +109,7 @@ class PairKey:
         """:param M: <str> Transaction details
         :param k: <int> Secret number unique to each message"""
         M = sha256(M.encode()).hexdigest()
-        z = hashes_to_bits(M)[:min(self.N, 256)]
+        z = bin(M)[2:min(self.N, 256)]
         z = bits_to_integer(z, len(z))
 
         r = pow(self.g, k, self.p) % self.q
@@ -123,7 +129,7 @@ class PairKey:
             return False
         w = find_inverse(s, self.q) % self.q
         M = sha256(M.encode()).hexdigest()
-        z = hashes_to_bits(M)[:min(self.N, 256)]
+        z = bin(M)[2:min(self.N, 256)]
         z = bits_to_integer(z, len(z))
 
         u1 = (z * w) % self.q
@@ -148,15 +154,6 @@ class Validate:
         if (p - 1) % q != 0:
             print("q is INVALID")
         return L, N
-
-    # !-!-! validate.g() takes too damn long to run
-    def g(self, p, q, g):
-        if not 2 <= g <= (p - 1):
-            print("g is INVALID")
-        if g ** q == 1 % p:
-            print("g is PARTIALLY VALID")
-        else:
-            print("g is INVALID")
 
     def xy(self, x, y, p, q):
         if not 1 <= x <= (q - 1):

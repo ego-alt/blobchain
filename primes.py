@@ -48,7 +48,7 @@ class ST_random_prime:
 
     def find_c2(self):
         # Generates a pseudorandom integer x in the interval [2 ** (self.length - 1), 2 ** (self.length)]
-        class_object = ST_random_prime((self.length//2 + 1), self.prime_seed)
+        class_object = ST_random_prime((self.length // 2 + 1), self.prime_seed)
         (status, c0, self.prime_seed, self.prime_gen_counter) = class_object.find_prime()
         if status == "FAILURE":
             return 'FAILURE', 0, 0, 0
@@ -84,3 +84,37 @@ class ST_random_prime:
 
         if self.prime_gen_counter > (4 * self.length + old_counter):
             return 'FAILURE', 0, 0, 0
+
+    def find_p(self, q, p0, L, p_seed, pgen_counter):
+        iterations = L // self.outlen - 1
+        old_counter = pgen_counter
+
+        x = 0
+        for i in range(iterations):
+            x = x + hash_int(p_seed + i) * (2 ** (i * self.outlen))
+        p_seed = p_seed + iterations + 1
+        x = 2 ** (L - 1) + x % 2 ** (L - 1)
+
+        c0 = q * p0
+        t = x // (2 * c0)
+        while pgen_counter <= (4 * L + old_counter):
+            if 2 * t * c0 + 1 > 2 ** L:
+                t = 2 ** (L - 1) // (2 * c0)
+            p = 2 * t * c0 + 1
+            pgen_counter = pgen_counter + 1
+
+            a = 0
+            for j in range(iterations):
+                a = a + (hash_int(p_seed + j) * 2 ** (j * self.outlen))
+            p_seed = p_seed + iterations + 1
+            a = 2 + a % (p - 3)
+            z = pow(a, (2 * t * q), p)
+
+            if 1 == gcd(z - 1, p) and 1 == pow(z, p0, p):
+                self.prime = p
+                return 'SUCCESS', p, p_seed, pgen_counter
+            t += 1
+
+        if pgen_counter > (4 * self.length + old_counter):
+            return 'FAILURE', 0, 0, 0
+
