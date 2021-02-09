@@ -1,5 +1,22 @@
 #!/usr/local/bin/python3.9
 
+import sys
 import peer
+import threading
 
-me = peer.Peer(0, None, 8080, "172.21.163.35", 8081, None)
+
+maxpeers = int(sys.argv[1])
+serverport = int(sys.argv[2])
+firstpeer = sys.argv[3]
+
+
+def peerstart(maxpeers, serverport, firstpeer):
+
+    node = peer.Peer(maxpeers, serverport)
+    host, port = firstpeer.split(":")
+
+    t = threading.Thread(target=node.mainloop, args=[])
+    t.start()
+
+
+peerstart(maxpeers, serverport, firstpeer)

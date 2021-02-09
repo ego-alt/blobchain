@@ -1,3 +1,5 @@
+#!/usr/local/bin/python3.9
+
 import socket
 import threading
 import traceback
@@ -14,7 +16,7 @@ ERROR = "ERRO"
 
 
 class Peer:
-    def __init__(self, maxpeers, myid, serverport, peerhost: str, peerport: int, serverhost=None):
+    def __init__(self, maxpeers, serverport, myid=None, serverhost=None):
         """Initialises a peer node
         :param maxpeers: <int> Maximum number of peers that the node will maintain
         :param myid: <str> Canonical identifier of the node
@@ -43,13 +45,11 @@ class Peer:
                          "CASH": self.handle_transaction,
                          "BLOB": self.handle_requestchain}
 
-        self.mainloop(peerhost, peerport)
-
-    def mainloop(self, peerhost, peerport):
+    def mainloop(self):
         """Continuous loop accepting connections. When an incoming connection is accepted, the method handle_peer is
         called to handle communication with this connection on a new thread"""
         s = self.makesocket(self.serverport)
-        s.settimeout(10)
+        s.settimeout(None)
         print(f"Server started: {self.myid}")
 
         while not self.shutdown:
@@ -76,11 +76,6 @@ class Peer:
         s.listen(backlog)
         return s
 
-    def sideloop(self, peerhost, peerport):
-        while len(self.peers) < self.maxpeers or self.maxpeers == 0:
-            self.buildpeers(peerhost, peerport)
-        print("Maximum number of peers reached")
-
     def handlepeer(self, client_sock):
         """Takes a newly formed connection, processes the request, and dispatches the request to an appropriate
         handler for processing"""
@@ -91,7 +86,7 @@ class Peer:
         try:
             msgtype, msgdata = peercon.received()
             if msgtype in self.handlers:
-                print(f"Handling peer message: {msgtype}: {msgdata}")
+                print(f"Handling peer message from {client_sock.getpeername()}: {msgtype}: {msgdata}")
                 self.handlers[msgtype](peercon, msgdata)
             else:
                 print(f"{msgtype}: {msgdata}")
@@ -99,31 +94,26 @@ class Peer:
             print("Exception in Peer.handlepeer():")
             traceback.print_exc()
 
-    def findpeer(self, peerhost, peerport):
+    def buildpeers(self, peerhost, peerport, depth=3):
         try:
             _, peerid = self.sendpeer(peerhost, peerport, GIVENAME, '')
             print(f"Connection to {peerid} established")
             self.addpeer(peerhost, peerport, peerid)
-            self.status = False
-            return self.status
-        except:
-            print("Exception in Peer.findpeer():")
-            traceback.print_exc()
-            return True
 
-    def buildpeers(self, peerhost, peerport, depth=4):
-        if depth:
-            try:
-                _, peerjson =  self.sendpeer(peerhost, peerport, PEERLIST, '')
-                peerdict = json.loads(peerjson)
-                for nextpeer, data in peerdict:
-                    if nextpeer not in self.peers and nextpeer != self.myid:
-                        nexthost, nextport = data
-                        self.addpeer(nextpeer, nexthost, nextport)
-                        self.buildpeers(nexthost, nextport, depth-1)
-            except:
-                print("Exception in Peer.buildpeers():")
-                traceback.print_exc()
+            while depth:
+                if len(self.peers) < self.maxpeers or self.maxpeers == 0:
+                    _, peerjson =  self.sendpeer(peerhost, peerport, PEERLIST, '')
+                    peerdict = json.loads(peerjson)
+                    for nextpeer, data in peerdict:
+                        if nextpeer not in self.peers and nextpeer != self.myid:
+                            nexthost, nextport = data
+                            self.addpeer(nextpeer, nexthost, nextport)
+                            self.buildpeers(nexthost, nextport, depth-1)
+                else:
+                    print("Maximum number of peers reached")
+        except:
+            print("Exception in Peer.buildpeers():")
+            traceback.print_exc()
 
     def sendpeer(self, host, port, msgtype, msgdata, peerid=None):
         replies = []
@@ -133,10 +123,10 @@ class Peer:
             if sent:
                 print(f"Request type {msgtype} sent. Waiting for reply...")
                 reply = peercon.received()
-                print(reply)
                 while reply != (None, None):
-                    replies.append(reply)
                     print(f"Received reply from {peerid}: {reply}")
+                    reply = peercon.received()
+                    replies.append(reply)
             peercon.close()
         except:
             print("Exception in Peer.sendpeer():")
@@ -148,8 +138,8 @@ class Peer:
         self.peers[peerid] = (host, port)
         print(f"{peerid} has been added")
         print(f"Requesting {peerid} to add me...")
-        me = (self.myid, self.serverhost, self.serverport)
-        self.sendpeer(host, port, ADDME, me)
+        i = (self.myid, self.serverhost, self.serverport)
+        self.sendpeer(host, port, ADDME, i)
         return True
 
     def handle_addme(self, peercon, data):
