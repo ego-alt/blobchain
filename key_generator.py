@@ -4,7 +4,7 @@ import primes
 
 """Adapted the Digital Signature Algorithm as documented by the U.S. Department of Commerce
 Section B.1.1: Key Pair Generation Using Extra Random Bits
-Create public and private keys for yourself"""
+Create public and private keys"""
 
 
 def bits_to_integer(bits, N):
