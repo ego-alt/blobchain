@@ -36,17 +36,19 @@ class BlobNode:
     async def main(self):
         server = await asyncio.start_server(self.handle_echo, self.host, self.port)
         self.address = server.sockets[0].getsockname()
-        await self.build_peers()
         print(f'Serving on {self.address}')
+
+        try:
+            await asyncio.gather(*(self.build_peers('127.0.0.1', port) for port in sisters))
+        except OSError:
+            pass
+
         async with server:
             await server.serve_forever()
 
     async def send_echo(self, PEERHOST, PEERPORT, msgtype, message):
         reader, writer = await asyncio.open_connection(PEERHOST, PEERPORT)
         newpeer = (PEERHOST, PEERPORT)
-        if newpeer not in peerlist and len(peerlist) < self.maxpeers:
-            peerlist.append(newpeer)
-            print(f'{PEERHOST}:{PEERPORT} added to peer list')
 
         print(f'Sending message {msgtype!r}: {message!r} to {newpeer!r}...')
         packet = process_message(msgtype, message)
@@ -55,32 +57,49 @@ class BlobNode:
         data = await reader.read(1024)
         replytype, reply = extract_data(data)
         print(f'Received reply {replytype}: {reply!r} from {newpeer!r}')
-
         await writer.drain()
         writer.close()
+
+        return replytype, reply
 
     async def handle_echo(self, reader, writer):
         data = await reader.read(1024)
         msgtype, message = extract_data(data)
-        address = writer.get_extra_info('peername')
-        print(f"Received message {msgtype}: {message!r} from {address!r}")
 
-        writer.write(data)
+        response = Handler(self.maxpeers)
+        new_packet = await response.handle_data(data)
+        print(f'Received message {msgtype}: {message!r}')
+        packet = response.packet
+
+        writer.write(packet)
+        print(f'Sending reply...')
         await writer.drain()
         writer.close()
-        print("Close the connection")
 
-    async def build_peers(self):
+    async def build_peers(self, host, port):
+        print(f'Building peers...')
         try:
-            await asyncio.gather(*(self.send_echo('127.0.0.1', port, 'PING', self.address) for port in sisters))
+            if await self.send_echo(host, port, 'PING', self.address):
+                newpeer = (host, port)
+                if newpeer not in peerlist and len(peerlist) < self.maxpeers:
+                    peerlist.append(newpeer)
+                    print(f'{host!r}:{port!r} added to peer list')
+
+                _, reply = await self.send_echo(host, port, 'LIST', '')
+                replylist = ast.literal_eval(str(reply))
+                for peeraddr in replylist:
+                    peerhost, peerport = peeraddr
+                    if peerhost != self.host or peerport != self.port:
+                        try:
+                            await self.build_peers(peerhost, peerport)
+                        except OSError:
+                            pass
         except OSError:
             pass
 
 
 class Handler:
-    def __init__(self, HOST, PORT, maxpeers, PEERHOST=None, PEERPORT=None):
-        self.host = HOST
-        self.port = PORT
+    def __init__(self, maxpeers, PEERHOST=None, PEERPORT=None):
         self.maxpeers = maxpeers
         self.peerhost = PEERHOST
         self.peerport = PEERPORT
@@ -89,11 +108,15 @@ class Handler:
                         'CASH': self.transaction,
                         'BLOB': self.request_blobchain,
                         'ERRO': self.flag_error}
+        self.packet = None
 
     async def handle_data(self, data):
         msgtype, message = extract_data(data)
+        message = str(message)
         if msgtype in self.handlers:
             await self.handlers[msgtype](message)
+        else:
+            pass
 
     async def ping_check(self, message):
         """PING is sent to a peer contact which was not initially in the peer list
@@ -104,14 +127,24 @@ class Handler:
 
         if newpeer not in peerlist and len(peerlist) < self.maxpeers:
             peerlist.append(newpeer)
-            print(f'{self.peerhost}:{self.peerport} added to peer list')
+            print(f'{self.peerhost!r}:{self.peerport!r} added to peer list')
+            replytype, reply = 'REPL', None
+            self.packet = process_message(replytype, reply)
+
         elif newpeer in peerlist:
-            print(f'ALERT: {self.peerhost}:{self.peerport} is already a peer')
+            print(f'ALERT: {self.peerhost!r}:{self.peerport!r} is already a peer')
+            replytype, reply = 'ERRO', 'Request to add was declined, because you are already listed'
+            self.packet = process_message(replytype, reply)
+
         elif len(peerlist) < self.maxpeers:
-            print(f'ALERT: peer list has reached its maximum capacity of {self.maxpeers}')
+            print(f'ALERT: peer list has reached its maximum capacity of {self.maxpeers!r}')
+            replytype, reply = 'ERRO', 'Request to add was declined, because maximum number of peers has been reached'
+            self.packet = process_message(replytype, reply)
 
     async def list_peers(self, message):
-        pass
+        """Upon receiving LIST, shares the full peer list to the node which made the request"""
+        replytype, reply = 'REPL', peerlist
+        self.packet = process_message(replytype, reply)
 
     async def transaction(self, message):
         pass
@@ -120,15 +153,8 @@ class Handler:
         pass
 
     async def flag_error(self, message):
-        pass
+        print(f'Error detected: {message}')
+        return ''
 
 
 BlobNode(8888)
-
-
-
-
-
-
-
-
