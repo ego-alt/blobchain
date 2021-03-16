@@ -1,7 +1,10 @@
+import blockchain
 import asyncio
 import socket
 import ast
+import sys
 
+# Hard-coded nodes in the network provides a contact point for finding other peers
 sisters = [8888, 8877, 8866, 8855]
 peerlist = []
 
@@ -22,6 +25,9 @@ def process_message(msgtype, message):
 
 class BlobNode:
     def __init__(self, PORT, HOST=None):
+        """Initialises a fully functioning peer node which can handle and send requests"""
+        self.blo = blockchain.Blobchain()
+
         self.maxpeers = 100
         self.port = PORT
         if not HOST:
@@ -49,7 +55,6 @@ class BlobNode:
     async def send_echo(self, PEERHOST, PEERPORT, msgtype, message):
         reader, writer = await asyncio.open_connection(PEERHOST, PEERPORT)
         newpeer = (PEERHOST, PEERPORT)
-
         print(f'Sending message {msgtype!r}: {message!r} to {newpeer!r}...')
         packet = process_message(msgtype, message)
         writer.write(packet)
@@ -62,13 +67,17 @@ class BlobNode:
 
         return replytype, reply
 
+    async def handle_reply(self, replytype, reply):
+        response = ReplyHandler()
+        await response.reply_data(replytype, reply)
+
     async def handle_echo(self, reader, writer):
         data = await reader.read(1024)
         msgtype, message = extract_data(data)
+        print(f'Received message {msgtype}: {message!r}')
 
         response = Handler(self.maxpeers)
-        new_packet = await response.handle_data(data)
-        print(f'Received message {msgtype}: {message!r}')
+        await response.handle_data(data, self.blo)
         packet = response.packet
 
         writer.write(packet)
@@ -79,15 +88,15 @@ class BlobNode:
     async def build_peers(self, host, port):
         print(f'Building peers...')
         try:
-            if await self.send_echo(host, port, 'PING', self.address):
-                newpeer = (host, port)
-                if newpeer not in peerlist and len(peerlist) < self.maxpeers:
+            newpeer = (host, port)
+            if len(peerlist) < self.maxpeers and await self.send_echo(host, port, 'PING', self.address):
+                if (host != self.host or port != self.port) and newpeer not in peerlist:
                     peerlist.append(newpeer)
                     print(f'{host!r}:{port!r} added to peer list')
 
                 _, reply = await self.send_echo(host, port, 'LIST', '')
-                replylist = ast.literal_eval(str(reply))
-                for peeraddr in replylist:
+                reply = ast.literal_eval(str(reply))
+                for peeraddr in reply:
                     peerhost, peerport = peeraddr
                     if peerhost != self.host or peerport != self.port:
                         try:
@@ -100,25 +109,29 @@ class BlobNode:
 
 class Handler:
     def __init__(self, maxpeers, PEERHOST=None, PEERPORT=None):
+        """The object Handler takes incoming requests and decides how to reply
+        PING: adds the sender to the peer list if the maximum has not been reached
+        LIST: shares a copy of the full peer list to the sender
+        CASH: puts in proof of work to verify the sent transaction
+        BLOB: shares a copy of the full blockchain to the sender"""
         self.maxpeers = maxpeers
         self.peerhost = PEERHOST
         self.peerport = PEERPORT
         self.handlers = {'PING': self.ping_check,
-                        'LIST': self.list_peers,
-                        'CASH': self.transaction,
-                        'BLOB': self.request_blobchain,
-                        'ERRO': self.flag_error}
+                         'LIST': self.list_peers,
+                         'CASH': self.transaction,
+                         'BLOB': self.request_blobchain}
         self.packet = None
 
-    async def handle_data(self, data):
+    async def handle_data(self, data, blockchain):
         msgtype, message = extract_data(data)
         message = str(message)
         if msgtype in self.handlers:
-            await self.handlers[msgtype](message)
+            await self.handlers[msgtype](message, blockchain)
         else:
             pass
 
-    async def ping_check(self, message):
+    async def ping_check(self, message, *args):
         """PING is sent to a peer contact which was not initially in the peer list
         PING includes its message type 'PING' and the sender's contact details, i.e. host and port
         In response, the receiver checks whether the sender is in the peer list, and if not, adds them"""
@@ -128,7 +141,7 @@ class Handler:
         if newpeer not in peerlist and len(peerlist) < self.maxpeers:
             peerlist.append(newpeer)
             print(f'{self.peerhost!r}:{self.peerport!r} added to peer list')
-            replytype, reply = 'REPL', None
+            replytype, reply = 'REPL-PING', None
             self.packet = process_message(replytype, reply)
 
         elif newpeer in peerlist:
@@ -141,20 +154,59 @@ class Handler:
             replytype, reply = 'ERRO', 'Request to add was declined, because maximum number of peers has been reached'
             self.packet = process_message(replytype, reply)
 
-    async def list_peers(self, message):
+    async def list_peers(self, _, *args):
         """Upon receiving LIST, shares the full peer list to the node which made the request"""
-        replytype, reply = 'REPL', peerlist
+        replytype, reply = 'REPL-LIST', peerlist
         self.packet = process_message(replytype, reply)
 
-    async def transaction(self, message):
+    async def transaction(self, message, blo):
+        transaction = ast.literal_eval(message)
+        recipient = transaction["recipient"]
+        sender = transaction["sender"]
+        amount = transaction["amount"]
+        blo.newblock(recipient, sender, amount)
+
+        replytype, reply = 'REPL-CASH', None
+        self.packet = process_message(replytype, reply)
+
+    async def request_blobchain(self, _, blo):
+        blobchain = []
+        for blob in blo.chain:
+            blobchain.append(vars(blob))
+        replytype, reply = 'REPL-BLOB', blobchain
+        self.packet = process_message(replytype, reply)
+
+
+class ReplyHandler:
+    """The object ReplyHandler receives replies from its previous requests and decides how to use the information
+    REPL-LIST: adds new peers to the peer list
+    REPL-CASH: after receiving a transaction broadcast, mines one block for the transaction
+    REPLY-BLOB: compares the highest index in the chain received with blobchain"""
+    def __init__(self):
+        self.handlers = {'REPL-LIST': self.reply_list,
+                         'REPL-CASH': self.reply_cash,
+                         'REPL-BLOB': self.reply_blob}
+
+    async def reply_data(self, command, reply):
+        reply = ast.literal_eval(str(reply))
+        if command in self.handlers:
+            self.handlers[command](reply)
+
+    async def reply_list(self, reply):
+        for peeraddr in reply:
+            peerlist.append(peeraddr) if peeraddr not in peerlist else peerlist
+
+    async def reply_cash(self, reply):
         pass
 
-    async def request_blobchain(self, message):
+    async def reply_blob(self, reply):
         pass
 
-    async def flag_error(self, message):
-        print(f'Error detected: {message}')
-        return ''
 
+port = int(sys.argv[1])
+if len(sys.argv) == 2:
+    host = None
+else:
+    host = str(sys.argv[2])
 
-BlobNode(8888)
+BlobNode(port, host)
