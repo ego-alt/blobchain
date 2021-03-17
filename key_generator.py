@@ -140,7 +140,9 @@ class PairKey:
 
         u1 = (z * w) % self.q
         u2 = (r * w) % self.q
-        v = ((self.g ** u1) * (self.y ** u2)) % self.p % self.q
+        print(u1)
+        print(u2)
+        v = (((self.g ** u1) * (self.y ** u2)) % self.p) % self.q
         if v == r:
             return True
 
@@ -172,5 +174,6 @@ class Validate:
 
 pair = PairKey(1024, 160, 927)
 (r, s) = pair.gen_signature("hello")
+print(pair.verify_signature("hello", r, s))
 
 

@@ -2,15 +2,14 @@ from hashlib import sha256
 from time import time
 
 
-class Blockchain:
-
+class Blobchain:
     def __init__(self):
         self.chain = []
         self.genesis_block()
 
     def genesis_block(self):
         # Initialises the blockchain with the genesis block
-        self.chain.append(Block(0, "1", None, None, None))
+        self.chain.append(Blob(0, "1", None, None, None))
         pass
 
     def new_block(self, recipient, sender, amount):
@@ -20,7 +19,7 @@ class Blockchain:
         :param amount: <int> Amount of money transferred"""
         index = len(self.chain) + 1
         previous_hash = self.chain[-1].own_hash
-        self.add_block(Block(index, previous_hash, recipient, sender, amount))
+        self.add_block(Blob(index, previous_hash, recipient, sender, amount))
 
     def add_block(self, block):
         """Adds a new Block to the Blockchain given the Proof of Work"""
@@ -35,8 +34,7 @@ class Blockchain:
         return guess_hash[:3] == "000"
 
 
-class Block:
-
+class Blob:
     def __init__(self, index, previous_hash, recipient, sender, amount, nonce=0):
         """Initialises a Block
         :param index: <int> Index of a Block in the Blockchain

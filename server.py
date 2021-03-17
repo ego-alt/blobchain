@@ -4,10 +4,10 @@ from tornado.httpserver import HTTPServer
 from tornado.options import define, options
 from tornado.ioloop import IOLoop
 
-from blockchain import Blockchain
+from blockchain import Blobchain
 
 define('port', default=8888, help='Port to listen on')
-new_chain = Blockchain()
+new_chain = Blobchain()
 
 
 class InfoView(RequestHandler, ABC):
