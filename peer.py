@@ -52,22 +52,32 @@ class BlobNode:
         async with server:
             await server.serve_forever()
 
+    async def routine(self, PEERHOST, PEERPORT, msgtype, message):
+        """Creates the routine of sending messages, receiving replies, and correctly using the information"""
+        newpeer = (PEERHOST, PEERPORT)
+        replytype, reply = await self.send_echo(PEERHOST, PEERPORT, msgtype, message)
+        await self.handle_reply(newpeer, replytype, reply)
+
     async def send_echo(self, PEERHOST, PEERPORT, msgtype, message):
+        """Sends and receives messages"""
         reader, writer = await asyncio.open_connection(PEERHOST, PEERPORT)
         newpeer = (PEERHOST, PEERPORT)
-        print(f'Sending message {msgtype!r}: {message!r} to {newpeer!r}...')
+        print(f'Sending message {msgtype}: {message!r} to {newpeer!r}...')
         packet = process_message(msgtype, message)
         writer.write(packet)
 
         data = await reader.read(1024)
         replytype, reply = extract_data(data)
-        print(f'Received reply {replytype}: {reply!r} from {newpeer!r}')
         await writer.drain()
         writer.close()
 
         return replytype, reply
 
-    async def handle_reply(self, replytype, reply):
+    async def handle_reply(self, newpeer, replytype, reply):
+        """Interprets replytype in order to decide what to do with reply
+        :param replytype: In the format REPL-{original request} so that the purpose of the reply is known
+        :param reply: Information satisfying the original request"""
+        print(f'Received reply {replytype}: {reply!r} from {newpeer!r}')
         response = ReplyHandler()
         await response.reply_data(replytype, reply)
 
@@ -86,23 +96,23 @@ class BlobNode:
         writer.close()
 
     async def build_peers(self, host, port):
-        print(f'Building peers...')
         try:
             newpeer = (host, port)
-            if len(peerlist) < self.maxpeers and await self.send_echo(host, port, 'PING', self.address):
-                if (host != self.host or port != self.port) and newpeer not in peerlist:
+            if (host != self.host or port != self.port) and (newpeer not in peerlist):
+                if len(peerlist) < self.maxpeers and await self.send_echo(host, port, 'PING', self.address):
                     peerlist.append(newpeer)
                     print(f'{host!r}:{port!r} added to peer list')
 
-                _, reply = await self.send_echo(host, port, 'LIST', '')
-                reply = ast.literal_eval(str(reply))
-                for peeraddr in reply:
-                    peerhost, peerport = peeraddr
-                    if peerhost != self.host or peerport != self.port:
-                        try:
-                            await self.build_peers(peerhost, peerport)
-                        except OSError:
-                            pass
+                    print(f'Building peers...')
+                    _, reply = await self.send_echo(host, port, 'LIST', '')
+                    reply = ast.literal_eval(str(reply))
+                    for peeraddr in reply:
+                        peerhost, peerport = peeraddr
+                        if peerhost != self.host or peerport != self.port:
+                            try:
+                                await self.build_peers(peerhost, peerport)
+                            except OSError:
+                                pass
         except OSError:
             pass
 
@@ -190,11 +200,18 @@ class ReplyHandler:
     async def reply_data(self, command, reply):
         reply = ast.literal_eval(str(reply))
         if command in self.handlers:
-            self.handlers[command](reply)
+            await self.handlers[command](reply)
+        else:
+            pass
 
     async def reply_list(self, reply):
+        newpeers = []
         for peeraddr in reply:
-            peerlist.append(peeraddr) if peeraddr not in peerlist else peerlist
+            newpeers.append(peeraddr) if peeraddr not in peerlist else newpeers
+        peerlist.extend(newpeers)
+
+        counter = len(newpeers)
+        print(f'{counter} new peers added to peer list')
 
     async def reply_cash(self, reply):
         pass
