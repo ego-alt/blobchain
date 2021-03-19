@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, shrink-to-fit=no">
+    <title>BLOBLET</title>
+    <meta name="description" content="Your desktop cryptocurrency wallet">
+    <link rel="stylesheet" href="assets/bootstrap/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Open+Sans:300italic,400italic,600italic,700italic,800italic,400,300,600,700,800">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Merriweather:400,300,300italic,400italic,700,700italic,900,900italic">
+    <link rel="stylesheet" href="assets/fonts/font-awesome.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/aos/2.3.4/aos.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/magnific-popup.js/1.1.0/magnific-popup.min.css">
+</head>
+
+<body id="page-top">
+    <nav class="navbar navbar-light navbar-expand-lg fixed-top" id="mainNav">
+        <div class="container"><a class="navbar-brand js-scroll-trigger" href="#page-top">BLOBLET</a><button data-toggle="collapse" data-target="#navbarResponsive" class="navbar-toggler navbar-toggler-right" type="button" aria-controls="navbarResponsive" aria-expanded="false" aria-label="Toggle navigation"><i class="fa fa-align-justify"></i></button>
+            <div class="collapse navbar-collapse" id="navbarResponsive">
+                <ul class="navbar-nav ml-auto">
+                    <li class="nav-item"><a class="nav-link js-scroll-trigger" href="#page-top">Wallet</a></li>
+                    <li class="nav-item"><a class="nav-link js-scroll-trigger" href="#transaction">Transaction history</a></li>
+                    <li class="nav-item"><a class="nav-link js-scroll-trigger" href="#ledger">blockchain ledger</a></li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+    <header class="text-center text-white d-flex masthead" style="background-image:url('assets/img/header.jpg');">
+        <div class="container my-auto">
+            <div class="row">
+                <div class="col-lg-10 mx-auto">
+                    <h1 class="text-uppercase"><strong>Your desktop</strong></h1>
+                    <h1 class="text-uppercase"><strong>cryptocurrency wallet</strong></h1>
+                    <hr>
+                </div>
+            </div>
+            <div class="col-lg-8 mx-auto">
+                <p class="text-faded mb-5">Transferring blobcoins with no fuss since 2021</p>
+            </div>
+            <div class="row">
+                <div class="col">
+                    <form>
+                        <div class="form-group"><label>Sender</label><input class="form-control" type="text"></div>
+                    </form>
+                </div>
+                <div class="col">
+                    <form>
+                        <div class="form-group"><label>Recipient</label><input class="form-control" type="text"></div>
+                    </form>
+                </div>
+                <div class="col">
+                    <form>
+                        <div class="form-group"><label>Blobcoins</label><input class="form-control" type="number"></div>
+                    </form>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-lg-8 mx-auto"><a class="btn btn-primary btn-xl js-scroll-trigger" role="button" href="#services">send transaction</a></div>
+            </div>
+        </div>
+    </header>
+    <section class="bg-primary" id="transaction">
+        <div class="container">
+            <div class="row">
+                <div class="col offset-lg-8 text-center mx-auto">
+                    <h2 class="text-white section-heading">Transaction history</h2>
+                    <hr class="light my-4">
+                    <p class="text-faded mb-4">Check your account with your public key. No need to register or log in.</p>
+                    <form>
+                        <div class="form-group"><label>Public key</label><input class="form-control" type="text"></div>
+                    </form><a class="btn btn-light btn-xl js-scroll-trigger" role="button" href="#services">Check my account</a>
+                </div>
+                <div class="col">
+                    <div class="card">
+                        <div class="card-body" style="height: 303px;background: var(--light);">
+                            <h4 class="card-title">Blobcoin balance</h4>
+                            <h6 class="text-muted card-subtitle mb-2">In the past six months</h6>
+                            <hr>
+                            <div class="chart-area"><canvas data-bss-chart="{&quot;type&quot;:&quot;line&quot;,&quot;data&quot;:{&quot;labels&quot;:[&quot;Jan&quot;,&quot;Feb&quot;,&quot;Mar&quot;,&quot;Apr&quot;,&quot;May&quot;,&quot;Jun&quot;,&quot;Jul&quot;,&quot;Aug&quot;],&quot;datasets&quot;:[{&quot;label&quot;:&quot;Earnings&quot;,&quot;fill&quot;:true,&quot;data&quot;:[&quot;0&quot;,&quot;10000&quot;,&quot;5000&quot;,&quot;15000&quot;,&quot;10000&quot;,&quot;20000&quot;,&quot;15000&quot;,&quot;25000&quot;],&quot;backgroundColor&quot;:&quot;rgba(78, 115, 223, 0.05)&quot;,&quot;borderColor&quot;:&quot;rgba(78, 115, 223, 1)&quot;}]},&quot;options&quot;:{&quot;maintainAspectRatio&quot;:false,&quot;legend&quot;:{&quot;display&quot;:false},&quot;title&quot;:{},&quot;scales&quot;:{&quot;xAxes&quot;:[{&quot;gridLines&quot;:{&quot;color&quot;:&quot;rgb(234, 236, 244)&quot;,&quot;zeroLineColor&quot;:&quot;rgb(234, 236, 244)&quot;,&quot;drawBorder&quot;:false,&quot;drawTicks&quot;:false,&quot;borderDash&quot;:[&quot;2&quot;],&quot;zeroLineBorderDash&quot;:[&quot;2&quot;],&quot;drawOnChartArea&quot;:false},&quot;ticks&quot;:{&quot;fontColor&quot;:&quot;#858796&quot;,&quot;padding&quot;:20}}],&quot;yAxes&quot;:[{&quot;gridLines&quot;:{&quot;color&quot;:&quot;rgb(234, 236, 244)&quot;,&quot;zeroLineColor&quot;:&quot;rgb(234, 236, 244)&quot;,&quot;drawBorder&quot;:false,&quot;drawTicks&quot;:false,&quot;borderDash&quot;:[&quot;2&quot;],&quot;zeroLineBorderDash&quot;:[&quot;2&quot;]},&quot;ticks&quot;:{&quot;fontColor&quot;:&quot;#858796&quot;,&quot;padding&quot;:20}}]}}}"></canvas></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+    <section class="text-white bg-dark" id="ledger">
+        <div class="container text-center">
+            <h2 class="mb-4">Fetch the current blobchain</h2>
+            <p class="text-faded mb-5">The most up-to-date ledger at your fingertips</p><a class="btn btn-light btn-xl sr-button" role="button" href="#">Download Now</a>
+        </div>
+    </section>
+    <script src="assets/js/jquery.min.js"></script>
+    <script src="assets/bootstrap/js/bootstrap.min.js"></script>
+    <script src="assets/js/chart.min.js"></script>
+    <script src="assets/js/bs-init.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/aos/2.3.4/aos.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-easing/1.4.1/jquery.easing.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/magnific-popup.js/1.1.0/jquery.magnific-popup.min.js"></script>
+    <script src="assets/js/creative.js"></script>
+</body>
+
+</html>
