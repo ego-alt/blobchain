@@ -21,6 +21,16 @@ class InfoView(RequestHandler, ABC):
     def get(self):
         self.render('index.html')
 
+    def post(self):
+        if self.get_argument("send", None) is not None:
+            pass
+
+        if self.get_argument("check", None) is not None:
+            pass
+
+        if self.get_argument("download", None) is not None:
+            pass
+
 
 if __name__ == "__main__":
     app = Application([
