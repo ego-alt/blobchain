@@ -1,8 +1,7 @@
-import blockchain
+import blobchain.blockchain as blockchain
 import asyncio
 import socket
 import ast
-import sys
 
 # Hard-coded nodes in the network provides a contact point for finding other peers
 sisters = [8888, 8877, 8866, 8855]
@@ -72,6 +71,11 @@ class BlobNode:
         writer.close()
 
         return replytype, reply
+
+    async def broadcast(self, msgtype, message):
+        for peer in peerlist:
+            peerhost, peerport = peer
+            await self.send_echo(peerhost, peerport, msgtype, message)
 
     async def handle_reply(self, newpeer, replytype, reply):
         """Interprets replytype in order to decide what to do with reply
@@ -220,10 +224,10 @@ class ReplyHandler:
         pass
 
 
-port = int(sys.argv[1])
+"""port = int(sys.argv[1])
 if len(sys.argv) == 2:
     host = None
 else:
     host = str(sys.argv[2])
 
-BlobNode(port, host)
+BlobNode(port, host)"""

@@ -1,6 +1,6 @@
 from random import randint
 from hashlib import sha256
-import primes
+import blobchain.primes as primes
 
 """Adapted the Digital Signature Algorithm as documented by the U.S. Department of Commerce
 Section B.1.1: Key Pair Generation Using Extra Random Bits
