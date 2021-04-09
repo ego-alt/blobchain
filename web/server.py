@@ -1,7 +1,6 @@
 import os
 from abc import ABC
 from tornado.web import Application, RequestHandler
-from tornado.httpserver import HTTPServer
 from tornado.options import define, options
 from tornado.ioloop import IOLoop
 
@@ -39,6 +38,5 @@ if __name__ == "__main__":
     app = Application([
         (r"/", InfoView),
     ], debug=True, **settings)
-    http_server = HTTPServer(app)
-    http_server.listen(options.port)
+    app.listen(options.port)
     IOLoop.current().start()
