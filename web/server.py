@@ -1,10 +1,10 @@
 import os
 from abc import ABC
 from tornado.web import Application, RequestHandler
-from tornado.options import define, options
+from tornado.options import define, options, parse_command_line
 from tornado.ioloop import IOLoop
 
-define('port', default=8888, help='Port to listen on')
+define('port', default=5000, help='Port to listen on')
 
 STATIC_DIRNAME = "assets"
 settings = {
@@ -34,9 +34,14 @@ class InfoView(RequestHandler, ABC):
             pass
 
 
-if __name__ == "__main__":
+def main():
+    parse_command_line()
     app = Application([
         (r"/", InfoView),
     ], debug=True, **settings)
     app.listen(options.port)
     IOLoop.current().start()
+
+
+if __name__ == "__main__":
+    main()
