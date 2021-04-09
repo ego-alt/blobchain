@@ -11,13 +11,11 @@ idna==2.10
 incremental==17.5.0
 ipaddress==1.0.23
 itsdangerous==1.1.0
-Jinja2==2.11.2
 MarkupSafe==1.1.1
 mpmath==1.1.0
 netifaces==0.10.9
 ntplib==0.3.4
 numpy==1.19.5
-Pillow==8.1.0
 psutil==5.8.0
 PyHamcrest==2.0.2
 pyp2p==0.8.2
@@ -29,6 +27,5 @@ sympy==1.7.1
 tornado==6.1
 tqdm==4.56.0
 Twisted==20.3.0
-urllib3==1.26.3
 Werkzeug==1.0.1
 zope.interface==5.2.0
