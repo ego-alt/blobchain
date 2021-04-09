@@ -41,5 +41,4 @@ if __name__ == "__main__":
     ], debug=True, **settings)
     http_server = HTTPServer(app)
     http_server.listen(options.port)
-    print(f"Listening on http://localhost:{options.port}")
     IOLoop.current().start()
