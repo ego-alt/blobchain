@@ -4,7 +4,6 @@ from tornado.web import Application, RequestHandler
 from tornado.httpserver import HTTPServer
 from tornado.options import define, options
 from tornado.ioloop import IOLoop
-from blockchain import Blobchain
 
 define('port', default=8888, help='Port to listen on')
 
@@ -23,10 +22,14 @@ class InfoView(RequestHandler, ABC):
 
     def post(self):
         if self.get_argument("send", None) is not None:
-            pass
+            sender = self.get_body_argument("sender")
+            recipient = self.get_body_argument("recipient")
+            amount = self.get_body_argument("amount")
+
+            transaction = {'sender': sender, 'recipient': recipient, 'amount': amount}
 
         if self.get_argument("check", None) is not None:
-            pass
+            key = self.get_body_argument("key")
 
         if self.get_argument("download", None) is not None:
             pass
