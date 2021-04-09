@@ -1,6 +1,5 @@
 venv/
 .idea/
 __pycache__/
-assets/
 bower_components/
 node_modules/
