@@ -1,7 +1,10 @@
+#!/usr/bin/env python3
+
 import blobchain.blockchain as blockchain
 import asyncio
 import socket
 import ast
+import sys
 
 # Hard-coded nodes in the network provides a contact point for finding other peers
 sisters = [8888, 8877, 8866, 8855]
@@ -54,8 +57,17 @@ class BlobNode:
     async def routine(self, PEERHOST, PEERPORT, msgtype, message):
         """Creates the routine of sending messages, receiving replies, and correctly using the information"""
         newpeer = (PEERHOST, PEERPORT)
-        replytype, reply = await self.send_echo(PEERHOST, PEERPORT, msgtype, message)
-        await self.handle_reply(newpeer, replytype, reply)
+        try:
+            replytype, reply = await self.send_echo(PEERHOST, PEERPORT, msgtype, message)
+            await self.handle_reply(newpeer, replytype, reply)
+            return True
+        except OSError:
+            return False
+
+    async def broadcast(self, msgtype, message):
+        for peer in peerlist:
+            peerhost, peerport = peer
+            await self.routine(peerhost, peerport, msgtype, message)
 
     async def send_echo(self, PEERHOST, PEERPORT, msgtype, message):
         """Sends and receives messages"""
@@ -72,48 +84,44 @@ class BlobNode:
 
         return replytype, reply
 
-    async def broadcast(self, msgtype, message):
-        for peer in peerlist:
-            peerhost, peerport = peer
-            await self.send_echo(peerhost, peerport, msgtype, message)
-
     async def handle_reply(self, newpeer, replytype, reply):
         """Interprets replytype in order to decide what to do with reply
         :param replytype: In the format REPL-{original request} so that the purpose of the reply is known
         :param reply: Information satisfying the original request"""
         print(f'Received reply {replytype}: {reply!r} from {newpeer!r}')
         response = ReplyHandler()
-        condition, element = await response.reply_data(replytype, reply, self.blo)
+        condition, element = await response.reply_data(replytype, reply, self.blo.chain)
         if condition == 'UPDATE':
             await self.update_blockchain(element)
 
     async def handle_echo(self, reader, writer):
+        """Receives incoming messages and returns an appropriate reply"""
         data = await reader.read(1024)
         msgtype, message = extract_data(data)
         print(f'Received message {msgtype}: {message!r}')
-
         response = Handler(self.maxpeers)
         await response.handle_data(data, self.blo)
-        packet = response.packet
 
+        packet = response.packet
         writer.write(packet)
         print(f'Sending reply...')
         await writer.drain()
         writer.close()
 
     async def update_blockchain(self, other_chain):
-        self.blo = other_chain
+        self.blo.chain = other_chain
+        print('The blobchain has been updated with the longest chain')
 
     async def build_peers(self, host, port):
         try:
             newpeer = (host, port)
             if (host != self.host or port != self.port) and (newpeer not in peerlist):
-                if len(peerlist) < self.maxpeers and await self.send_echo(host, port, 'PING', self.address):
+                if len(peerlist) < self.maxpeers and await self.routine(host, port, 'PING', self.address):
                     peerlist.append(newpeer)
                     print(f'{host!r}:{port!r} added to peer list')
 
                     print(f'Building peers...')
-                    _, reply = await self.send_echo(host, port, 'LIST', '')
+                    _, reply = await self.send_echo(host, port, 'LIST', None)
                     reply = ast.literal_eval(str(reply))
                     for peeraddr in reply:
                         peerhost, peerport = peeraddr
@@ -142,11 +150,11 @@ class Handler:
                          'BLOB': self.request_blobchain}
         self.packet = None
 
-    async def handle_data(self, data, blockchain):
+    async def handle_data(self, data, blo):
         msgtype, message = extract_data(data)
         message = str(message)
         if msgtype in self.handlers:
-            await self.handlers[msgtype](message, blockchain)
+            await self.handlers[msgtype](message, blo)
         else:
             pass
 
@@ -183,8 +191,9 @@ class Handler:
         recipient = transaction["recipient"]
         sender = transaction["sender"]
         amount = transaction["amount"]
-        blo.newblock(recipient, sender, amount)
 
+        blo.new_block(recipient, sender, amount)
+        print(f'{sender} successfully transferred {amount} blobcoin to {recipient}')
         replytype, reply = 'REPL-CASH', None
         self.packet = process_message(replytype, reply)
 
@@ -227,16 +236,16 @@ class ReplyHandler:
     async def reply_cash(self, reply):
         return True, None
 
-    async def reply_blob(self, reply, blo):
+    async def reply_blob(self, reply, blockchain):
         other_chain = reply
-        block_num = other_chain[-1].index
-        return ('UPDATE', other_chain) if blo[-1].index < block_num else (False, None)
+        block_num = len(other_chain)
+        return ('UPDATE', other_chain) if len(blockchain) < block_num else (False, None)
 
 
-"""port = int(sys.argv[1])
+port = int(sys.argv[1])
 if len(sys.argv) == 2:
     host = None
 else:
-    host = str(sys.argv[2])"""
+    host = str(sys.argv[2])
 
-BlobNode(8888)
+BlobNode(port, host)
