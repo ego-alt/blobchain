@@ -83,7 +83,9 @@ class BlobNode:
         :param reply: Information satisfying the original request"""
         print(f'Received reply {replytype}: {reply!r} from {newpeer!r}')
         response = ReplyHandler()
-        await response.reply_data(replytype, reply)
+        condition, element = await response.reply_data(replytype, reply, self.blo)
+        if condition == 'UPDATE':
+            await self.update_blockchain(element)
 
     async def handle_echo(self, reader, writer):
         data = await reader.read(1024)
@@ -98,6 +100,9 @@ class BlobNode:
         print(f'Sending reply...')
         await writer.drain()
         writer.close()
+
+    async def update_blockchain(self, other_chain):
+        self.blo = other_chain
 
     async def build_peers(self, host, port):
         try:
@@ -194,40 +199,44 @@ class Handler:
 class ReplyHandler:
     """The object ReplyHandler receives replies from its previous requests and decides how to use the information
     REPL-LIST: adds new peers to the peer list
-    REPL-CASH: after receiving a transaction broadcast, mines one block for the transaction
-    REPLY-BLOB: compares the highest index in the chain received with blobchain"""
+    REPL-CASH: reports the first instance of a verification of the transaction
+    REPLY-BLOB: compares the highest index in the chain received with its own blobchain"""
     def __init__(self):
         self.handlers = {'REPL-LIST': self.reply_list,
                          'REPL-CASH': self.reply_cash,
                          'REPL-BLOB': self.reply_blob}
 
-    async def reply_data(self, command, reply):
+    async def reply_data(self, command, reply, blockchain):
         reply = ast.literal_eval(str(reply))
-        if command in self.handlers:
-            await self.handlers[command](reply)
+        if command == 'REPL-BLOB':
+            return await self.reply_blob(reply, blockchain)
+        elif command in self.handlers and not 'REPL-BLOB':
+            return await self.handlers[command](reply)
         else:
-            pass
+            return False, None
 
     async def reply_list(self, reply):
         newpeers = []
         for peeraddr in reply:
             newpeers.append(peeraddr) if peeraddr not in peerlist else newpeers
         peerlist.extend(newpeers)
-
         counter = len(newpeers)
         print(f'{counter} new peers added to peer list')
+        return True, None
 
     async def reply_cash(self, reply):
-        pass
+        return True, None
 
-    async def reply_blob(self, reply):
-        pass
+    async def reply_blob(self, reply, blo):
+        other_chain = reply
+        block_num = other_chain[-1].index
+        return ('UPDATE', other_chain) if blo[-1].index < block_num else (False, None)
 
 
 """port = int(sys.argv[1])
 if len(sys.argv) == 2:
     host = None
 else:
-    host = str(sys.argv[2])
+    host = str(sys.argv[2])"""
 
-BlobNode(port, host)"""
+BlobNode(8888)
