@@ -24,7 +24,6 @@ class InfoView(RequestHandler, ABC):
             sender = self.get_body_argument("sender")
             recipient = self.get_body_argument("recipient")
             amount = self.get_body_argument("amount")
-
             transaction = {'sender': sender, 'recipient': recipient, 'amount': amount}
 
         if self.get_argument("check", None) is not None:

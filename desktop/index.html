@@ -5,7 +5,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, shrink-to-fit=no">
     <title>Home - BLOBLET</title>
-    <meta name="description" content="Your desktop cryptocurrency wallet">
+    <meta name="description" content="Your desktop cryptocurrency client">
     <link rel="stylesheet" href="assets/bootstrap/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Open+Sans:300italic,400italic,600italic,700italic,800italic,400,300,600,700,800">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Merriweather:400,300,300italic,400italic,700,700italic,900,900italic">
@@ -19,19 +19,19 @@
         <div class="container"><a class="navbar-brand js-scroll-trigger" href="#page-top">BLOBLET</a><button data-toggle="collapse" data-target="#navbarResponsive" class="navbar-toggler navbar-toggler-right" type="button" aria-controls="navbarResponsive" aria-expanded="false" aria-label="Toggle navigation"><i class="fa fa-align-justify"></i></button>
             <div class="collapse navbar-collapse" id="navbarResponsive">
                 <ul class="navbar-nav ml-auto">
-                    <li class="nav-item"><a class="nav-link js-scroll-trigger" href="#page-top">Wallet</a></li>
-                    <li class="nav-item"><a class="nav-link js-scroll-trigger" href="#transaction">Transaction history</a></li>
+                    <li class="nav-item"><a class="nav-link js-scroll-trigger" href="#wallet">Wallet</a></li>
+                    <li class="nav-item"><a class="nav-link js-scroll-trigger" href="#history">Transaction history</a></li>
                     <li class="nav-item"><a class="nav-link js-scroll-trigger" href="#ledger">blockchain ledger</a></li>
                 </ul>
             </div>
         </div>
     </nav>
-    <header class="text-center text-white d-flex masthead" style="background-image:url('assets/img/header.jpg');">
+    <header class="text-center text-white d-flex masthead" style="background-image:url('assets/img/header.jpg');" id="wallet">
         <div class="container my-auto">
             <div class="row">
                 <div class="col-lg-10 mx-auto">
                     <h1 class="text-uppercase"><strong>Your desktop</strong></h1>
-                    <h1 class="text-uppercase"><strong>cryptocurrency wallet</strong></h1>
+                    <h1 class="text-uppercase"><strong>cryptocurrency client</strong></h1>
                     <hr>
                 </div>
             </div>
@@ -40,36 +40,37 @@
             </div>
             <div class="row">
                 <div class="col">
-                    <form>
-                        <div class="form-group"><label>Sender</label><input class="form-control" type="text"></div>
+                    <form class="text-nowrap" id="transac-form" method="post">
+                        <div class="form-row d-flex flex-column flex-sm-column flex-md-row flex-lg-row flex-xl-row">
+                            <div class="col">
+                                <div class="form-group"><label>Sender</label><input class="form-control" type="text" id="sender" required></div>
+                            </div>
+                            <div class="col">
+                                <div class="form-group"><label>Recipient</label><input class="form-control" type="text" id="recipient" required></div>
+                            </div>
+                            <div class="col offset-lg-0">
+                                <div class="form-group"><label>Blobcoins</label><input class="form-control" type="number" id="amount" required></div>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="col-lg-8 mx-auto"><button type="submit" form="transac-form" class="btn btn-primary btn-xl js-scroll-trigger" id="send">Send transaction</button></div>
+                        </div>
                     </form>
                 </div>
-                <div class="col">
-                    <form>
-                        <div class="form-group"><label>Recipient</label><input class="form-control" type="text"></div>
-                    </form>
-                </div>
-                <div class="col">
-                    <form>
-                        <div class="form-group"><label>Blobcoins</label><input class="form-control" type="number"></div>
-                    </form>
-                </div>
-            </div>
-            <div class="row">
-                <div class="col-lg-8 mx-auto"><a class="btn btn-primary btn-xl js-scroll-trigger" role="button" href="#services">send transaction</a></div>
             </div>
         </div>
     </header>
-    <section class="bg-primary" id="transaction">
+    <section class="bg-primary" id="history">
         <div class="container">
             <div class="row">
                 <div class="col offset-lg-8 text-center mx-auto">
                     <h2 class="text-white section-heading">Transaction history</h2>
                     <hr class="light my-4">
                     <p class="text-faded mb-4">Check your account with your public key. No need to register or log in.</p>
-                    <form>
-                        <div class="form-group"><label>Public key</label><input class="form-control" type="text"></div>
-                    </form><a class="btn btn-light btn-xl js-scroll-trigger" role="button" href="#services">Check my account</a>
+                    <form id="account-form" method="post">
+                        <div class="form-group"><label>Public key</label><input class="form-control" type="text" id="key" required></div>
+                        <button type="submit" form="account-form" class="btn btn-light btn-xl js-scroll-trigger" id="check">Check my account</button>
+                    </form>
                 </div>
                 <div class="col">
                     <div class="card">
@@ -87,9 +88,10 @@
     <section class="text-white bg-dark" id="ledger">
         <div class="container text-center">
             <h2 class="mb-4">Fetch the current blobchain</h2>
-            <p class="text-faded mb-5">The most up-to-date ledger at your fingertips</p><a class="btn btn-light btn-xl sr-button" role="button" href="#">Download Now</a>
+            <p class="text-faded mb-5">The most up-to-date ledger at your fingertips</p><a class="btn btn-light btn-xl sr-button" role="button" data-aos="zoom-in" data-aos-duration="400" data-aos-once="true" name="download">Download Now</a>
         </div>
     </section>
+    <script src="view.js"></script>
     <script src="assets/js/jquery.min.js"></script>
     <script src="assets/bootstrap/js/bootstrap.min.js"></script>
     <script src="assets/js/chart.min.js"></script>
