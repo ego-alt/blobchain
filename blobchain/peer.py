@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 import blobchain.blockchain as blockchain
 import asyncio
 import socket
@@ -47,7 +45,7 @@ class BlobNode:
         print(f'Serving on {self.address}')
 
         try:
-            await asyncio.gather(*(self.build_peers('127.0.0.1', port) for port in sisters))
+            await asyncio.gather(*(self.build_peers('127.0.0.1', peerport) for peerport in sisters))
         except OSError:
             pass
 
@@ -86,6 +84,7 @@ class BlobNode:
 
     async def handle_reply(self, newpeer, replytype, reply):
         """Interprets replytype in order to decide what to do with reply
+        :param newpeer: Name of the client node
         :param replytype: In the format REPL-{original request} so that the purpose of the reply is known
         :param reply: Information satisfying the original request"""
         print(f'Received reply {replytype}: {reply!r} from {newpeer!r}')
@@ -93,6 +92,7 @@ class BlobNode:
         condition, element = await response.reply_data(replytype, reply, self.blo.chain)
         if condition == 'UPDATE':
             await self.update_blockchain(element)
+            print(self.blo.chain)
 
     async def handle_echo(self, reader, writer):
         """Receives incoming messages and returns an appropriate reply"""
@@ -100,7 +100,9 @@ class BlobNode:
         msgtype, message = extract_data(data)
         print(f'Received message {msgtype}: {message!r}')
         response = Handler(self.maxpeers)
-        await response.handle_data(data, self.blo)
+        anunctype, announcement = await response.handle_data(data, self.blo)
+        if anunctype:
+            await self.broadcast(anunctype, announcement)
 
         packet = response.packet
         writer.write(packet)
@@ -146,8 +148,9 @@ class Handler:
         self.peerport = PEERPORT
         self.handlers = {'PING': self.ping_check,
                          'LIST': self.list_peers,
-                         'CASH': self.transaction,
                          'BLOB': self.request_blobchain}
+        self.value_handlers = {'CASH': self.transaction,
+                               'BLOC': self.fresh_block}
         self.packet = None
 
     async def handle_data(self, data, blo):
@@ -155,8 +158,12 @@ class Handler:
         message = str(message)
         if msgtype in self.handlers:
             await self.handlers[msgtype](message, blo)
+            return None, None
+        elif msgtype in self.value_handlers:
+            anunctype, announcement = await self.value_handlers[msgtype](message, blo)
+            return anunctype, announcement
         else:
-            pass
+            return None, None
 
     async def ping_check(self, message, *args):
         """PING is sent to a peer contact which was not initially in the peer list
@@ -186,23 +193,29 @@ class Handler:
         replytype, reply = 'REPL-LIST', peerlist
         self.packet = process_message(replytype, reply)
 
-    async def transaction(self, message, blo):
-        transaction = ast.literal_eval(message)
-        recipient = transaction["recipient"]
-        sender = transaction["sender"]
-        amount = transaction["amount"]
-
-        blo.new_block(recipient, sender, amount)
-        print(f'{sender} successfully transferred {amount} blobcoin to {recipient}')
-        replytype, reply = 'REPL-CASH', None
-        self.packet = process_message(replytype, reply)
-
     async def request_blobchain(self, _, blo):
         blobchain = []
         for blob in blo.chain:
             blobchain.append(vars(blob))
         replytype, reply = 'REPL-BLOB', blobchain
         self.packet = process_message(replytype, reply)
+
+    async def transaction(self, message, blo):
+        transaction = ast.literal_eval(message)
+        recipient = transaction["recipient"]
+        sender = transaction["sender"]
+        amount = transaction["amount"]
+
+        fresh_block = blo.new_block(recipient, sender, amount)
+        print(f'{sender} successfully transferred {amount} blobcoin to {recipient}')
+        replytype, reply = 'REPL-CASH', None
+        self.packet = process_message(replytype, reply)
+        return 'BLOC', fresh_block
+
+    async def fresh_block(self, message, blo):
+        fresh_block = message
+        blo.add_block(fresh_block)
+        return 'BLOC', fresh_block
 
 
 class ReplyHandler:

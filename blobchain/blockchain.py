@@ -19,7 +19,9 @@ class Blobchain:
         :param amount: <int> Amount of money transferred"""
         index = len(self.chain) + 1
         previous_hash = self.chain[-1].own_hash
-        self.add_block(Blob(index, previous_hash, recipient, sender, amount))
+        fresh_block = Blob(index, previous_hash, recipient, sender, amount)
+        self.add_block(fresh_block)
+        return fresh_block
 
     def add_block(self, block):
         """Adds a new Block to the Blockchain given the Proof of Work"""
