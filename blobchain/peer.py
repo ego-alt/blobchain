@@ -2,9 +2,9 @@ import blobchain.blockchain as blockchain
 import asyncio
 import socket
 import ast
-import sys
 
 # Hard-coded nodes in the network provides a contact point for finding other peers
+defaulthost = '127.0.0.1'
 sisters = [8888, 8877, 8866, 8855]
 peerlist = []
 
@@ -37,15 +37,13 @@ class BlobNode:
             self.host = HOST
         self.address = None
 
-        asyncio.run(self.main())
-
     async def main(self):
         server = await asyncio.start_server(self.handle_echo, self.host, self.port)
         self.address = server.sockets[0].getsockname()
         print(f'Serving on {self.address}')
 
         try:
-            await asyncio.gather(*(self.build_peers('127.0.0.1', peerport) for peerport in sisters))
+            await asyncio.gather(*(self.build_peers(defaulthost, peerport) for peerport in sisters))
         except OSError:
             pass
 
@@ -103,12 +101,10 @@ class BlobNode:
         anunctype, announcement = await response.handle_data(data, self.blo)
         if anunctype:
             await self.broadcast(anunctype, announcement)
-
-        packet = response.packet
-        writer.write(packet)
-        print(f'Sending reply...')
-        await writer.drain()
-        writer.close()
+            writer.write(response.packet)
+            print(f'Sending reply...')
+            await writer.drain()
+            writer.close()
 
     async def update_blockchain(self, other_chain):
         self.blo.chain = other_chain
@@ -148,9 +144,10 @@ class Handler:
         self.peerport = PEERPORT
         self.handlers = {'PING': self.ping_check,
                          'LIST': self.list_peers,
-                         'BLOB': self.request_blobchain}
-        self.value_handlers = {'CASH': self.transaction,
-                               'BLOC': self.fresh_block}
+                         'BLOB': self.request_blobchain,
+                         'BLOC': self.fresh_block}
+        # value_handlers have to return values to the BlobNode for further handling
+        self.value_handlers = {'CASH': self.transaction}
         self.packet = None
 
     async def handle_data(self, data, blo):
@@ -200,22 +197,27 @@ class Handler:
         replytype, reply = 'REPL-BLOB', blobchain
         self.packet = process_message(replytype, reply)
 
+    async def fresh_block(self, message, blo):
+        """On receiving BLOC, the node updates its own chain and broadcasts the new block to its own peers
+        This should result in a network of broadcasts, in order to announce the existence of the new transaction"""
+        transaction = ast.literal_eval(message)
+        recipient = transaction["recipient"]
+        sender = transaction["sender"]
+        amount = transaction["amount"]
+        blo.new_block(recipient, sender, amount)
+
     async def transaction(self, message, blo):
+        """The receiver verifies the transaction and mines a new block"""
         transaction = ast.literal_eval(message)
         recipient = transaction["recipient"]
         sender = transaction["sender"]
         amount = transaction["amount"]
 
-        fresh_block = blo.new_block(recipient, sender, amount)
+        blo.new_block(recipient, sender, amount)
         print(f'{sender} successfully transferred {amount} blobcoin to {recipient}')
         replytype, reply = 'REPL-CASH', None
         self.packet = process_message(replytype, reply)
-        return 'BLOC', fresh_block
-
-    async def fresh_block(self, message, blo):
-        fresh_block = message
-        blo.add_block(fresh_block)
-        return 'BLOC', fresh_block
+        return 'BLOC', transaction
 
 
 class ReplyHandler:
@@ -253,12 +255,3 @@ class ReplyHandler:
         other_chain = reply
         block_num = len(other_chain)
         return ('UPDATE', other_chain) if len(blockchain) < block_num else (False, None)
-
-
-port = int(sys.argv[1])
-if len(sys.argv) == 2:
-    host = None
-else:
-    host = str(sys.argv[2])
-
-BlobNode(port, host)
